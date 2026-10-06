@@ -1,0 +1,98 @@
+// =====================================================================
+// Student Retention & Course Analytics (OULAD) - all DAX in build order
+// =====================================================================
+
+// ---------- A. CALCULATED COLUMN (Table view > select fact_enrollment > New column)
+Risk Flag =
+SWITCH (
+    TRUE (),
+    fact_enrollment[ActiveAtCheckpoint] = "No", "Left before checkpoint",
+    fact_enrollment[EarlyEngagement] = "Low"
+        || fact_enrollment[FirstAssessmentStatus] <> "40+", "At risk",
+    "On track"
+)
+
+// ---------- B. MEASURES (select the _Measures table > New measure > paste ONE at a time)
+
+Total Enrollments = COUNTROWS ( fact_enrollment )
+
+Unique Students = DISTINCTCOUNT ( fact_enrollment[StudentID] )
+
+Withdrawn = CALCULATE ( [Total Enrollments], dim_result[FinalResult] = "Withdrawn" )
+
+Passed = CALCULATE ( [Total Enrollments], dim_result[ResultGroup] = "Passed" )
+
+Failed = CALCULATE ( [Total Enrollments], dim_result[FinalResult] = "Fail" )
+
+Withdrawal Rate = DIVIDE ( [Withdrawn], [Total Enrollments] )
+
+Retention Rate = DIVIDE ( [Total Enrollments] - [Withdrawn], [Total Enrollments] )
+
+Pass Rate = DIVIDE ( [Passed], [Total Enrollments] )
+
+Completer Pass Rate = DIVIDE ( [Passed], [Passed] + [Failed] )
+
+Withdraw or Fail Rate = DIVIDE ( [Withdrawn] + [Failed], [Total Enrollments] )
+
+Overall Withdrawal Rate = CALCULATE ( [Withdrawal Rate], REMOVEFILTERS () )
+
+Withdrawal Rate vs Overall = [Withdrawal Rate] - [Overall Withdrawal Rate]
+
+Withdrew Before Start % =
+DIVIDE (
+    CALCULATE ( [Total Enrollments], fact_enrollment[WithdrawalWeek] < 0 ),
+    [Total Enrollments]
+)
+
+Withdrawals =
+CALCULATE (
+    [Total Enrollments],
+    TREATAS ( VALUES ( dim_week[WeekNo] ), fact_enrollment[WithdrawalWeek] )
+)
+
+Retention by Week =
+VAR SelectedWeek = MAX ( dim_week[WeekNo] )
+VAR LeftSoFar =
+    CALCULATE (
+        [Total Enrollments],
+        fact_enrollment[WithdrawalWeek] <= SelectedWeek,
+        NOT ISBLANK ( fact_enrollment[WithdrawalWeek] )
+    )
+RETURN
+    DIVIDE ( [Total Enrollments] - LeftSoFar, [Total Enrollments] )
+
+Total Clicks = SUM ( fact_vle_weekly[Clicks] )
+
+Clicks per Student = DIVIDE ( [Total Clicks], [Total Enrollments] )
+
+Submissions = COUNTROWS ( fact_assessment )
+
+Avg Score = AVERAGE ( fact_assessment[Score] )
+
+Late Submission % =
+DIVIDE (
+    CALCULATE ( [Submissions], fact_assessment[DaysLate] > 0 ),
+    CALCULATE ( [Submissions], NOT ISBLANK ( fact_assessment[DaysLate] ) )
+)
+
+At-Risk Enrollments = CALCULATE ( [Total Enrollments], fact_enrollment[Risk Flag] = "At risk" )
+
+At-Risk Share =
+DIVIDE (
+    [At-Risk Enrollments],
+    CALCULATE ( [Total Enrollments], fact_enrollment[ActiveAtCheckpoint] = "Yes" )
+)
+
+// ---------- C. FORMAT: every Rate / % / Share / "vs Overall" measure -> Percentage, 1 decimal.
+//            Avg Score and Clicks per Student -> Decimal number, 1 decimal.
+
+// ---------- D. EXPECTED VALUES (no slicers selected) - reconciliation check
+// Total Enrollments 32,593 | Unique Students 28,785 | Withdrawn 10,156 | Passed 15,385 | Failed 7,052
+// Withdrawal Rate 31.2% | Retention Rate 68.8% | Pass Rate 47.2% | Completer Pass Rate 68.6%
+// Withdraw or Fail Rate 52.8% | Withdrew Before Start % 8.2% | Withdrawals 10,063 (93 have no date)
+// Total Clicks 39,605,099 | Submissions 173,912 | Avg Score 75.8 | Late Submission % 16.8%
+// At-Risk Enrollments 8,810 | At-Risk Share 31.9%
+
+// ---------- E. ROW-LEVEL SECURITY (Modeling > Manage roles)
+// Role "STEM"            table dim_course   filter:  [Domain] = "STEM"             -> 21,402 enrollments
+// Role "Social Sciences" table dim_course   filter:  [Domain] = "Social Sciences"  -> 11,191 enrollments

@@ -4,8 +4,8 @@ I built this to answer a simple question: which online students drop out, when, 
 
 The data is the Open University Learning Analytics Dataset. It has 32,593 course enrolments from 28,785 students across 7 modules and 4 intakes (Feb and Oct, 2013 and 2014).
 
-![Overview page] (screenshots/01_overview.png)
-![Retention and risk page] (screenshots/02_retention_risk.png)
+![Overview page](screenshots/01_overview.png)
+![Retention and risk page](screenshots/02_retention_risk.png)
 
 ## What I found
 
@@ -33,7 +33,7 @@ Re-checked the main numbers in SQL (SQLite) to make sure they agreed with Python
 - DAX: 22 measures, including a week-by-week retention curve (using TREATAS and a cumulative count) and comparisons against the overall average with REMOVEFILTERS
 - Row-level security: separate roles for STEM and Social Sciences
 
-![Viewing the report as the STEM role] (screenshots/03_rls_stem.png)
+![Viewing the report as the STEM role](screenshots/03_rls_stem.png)
 
 ## Files
 - `01_data_cleaning.ipynb` - cleaning and modelling in Python
